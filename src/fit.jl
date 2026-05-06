@@ -287,8 +287,8 @@ function _train_deep_ts!(model::DeepTimeSeriesModel, chain::SeqChain,
         end
         Flux.update!(opt_state, chain, grads[1])
 
-        if epoch == 1 || epoch % max(1, model.epochs ÷ 5) == 0 || epoch == model.epochs
-            @info "  Epoch $epoch/$(model.epochs) — Loss: $(round(loss_val; digits=6))"
+        if epoch == model.epochs
+            @info "  Final Loss (Epoch $epoch/$(model.epochs)): $(round(loss_val; digits=6))"
         end
     end
 
