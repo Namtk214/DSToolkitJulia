@@ -1,6 +1,3 @@
-# ==============================================================================
-# DSToolkit — Data Ingestion & Task Detection
-# ==============================================================================
 
 """
     ingest_data(source; target=nothing, task=nothing)
@@ -136,9 +133,7 @@ function ingest_data(y::AbstractVector{<:Number}; task::Symbol=:timeseries)
     return ToolkitData(nothing, collect(Float64, y), :timeseries)
 end
 
-# ==============================================================================
 # Task Detection
-# ==============================================================================
 
 """
     detect_task(y) → Symbol
@@ -167,9 +162,7 @@ function detect_task(y::AbstractVector)
     return :regression
 end
 
-# ==============================================================================
 # Data Validation
-# ==============================================================================
 
 function validate_data(X::DataFrame, y::AbstractVector)
     nrow(X) == 0 && error("Input DataFrame is empty.")

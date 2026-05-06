@@ -1,6 +1,5 @@
-# ==============================================================================
 # DSToolkit.jl — Comprehensive Test Suite
-# ==============================================================================
+
 using Test
 using DataFrames
 using CategoricalArrays
@@ -8,9 +7,7 @@ using DSToolkit
 
 @testset "DSToolkit.jl Full Test Suite" begin
 
-    # ==========================================================================
     # 1. Data Ingestion Tests
-    # ==========================================================================
     @testset "Data Ingestion" begin
 
         @testset "DataFrame input" begin
@@ -94,9 +91,7 @@ using DSToolkit
         end
     end
 
-    # ==========================================================================
     # 2. Train/Test Split Tests
-    # ==========================================================================
     @testset "Train/Test Split" begin
 
         @testset "Tabular split (80/20)" begin
@@ -141,9 +136,7 @@ using DSToolkit
         end
     end
 
-    # ==========================================================================
     # 3. Regression Model Tests
-    # ==========================================================================
     @testset "Regression Models" begin
         X = DataFrame(F1=rand(100), F2=rand(100))
         y = X.F1 .* 2.5 .+ X.F2 .* 1.5 .+ 0.1
@@ -172,9 +165,7 @@ using DSToolkit
         end
     end
 
-    # ==========================================================================
     # 4. Classification Model Tests
-    # ==========================================================================
     @testset "Classification Models" begin
         X = DataFrame(F1=rand(100), F2=rand(100))
         y = categorical(repeat(["A", "B", "C"], outer=34)[1:100])
@@ -200,9 +191,7 @@ using DSToolkit
         end
     end
 
-    # ==========================================================================
     # 5. Time Series Model Tests
-    # ==========================================================================
     @testset "Statistical Time Series" begin
         y = rand(100) .+ (1:100) .* 0.1  # Upward trend
         y_train, y_test = train_test_split(y; ratio=0.8)
@@ -244,9 +233,7 @@ using DSToolkit
         end
     end
 
-    # ==========================================================================
     # 6. Persistence Tests
-    # ==========================================================================
     @testset "Save / Load" begin
         @testset "Tabular model round-trip" begin
             model = LinearReg()
@@ -292,9 +279,7 @@ using DSToolkit
         end
     end
 
-    # ==========================================================================
     # 7. Error Handling Tests
-    # ==========================================================================
     @testset "Error Handling" begin
         @testset "Predict before training" begin
             model = RandomForestReg()
@@ -312,9 +297,7 @@ using DSToolkit
         end
     end
 
-    # ==========================================================================
     # 8. Full Pipeline Test (ToolkitData → auto_compare)
-    # ==========================================================================
     @testset "Full Pipeline (ToolkitData)" begin
         @testset "Regression pipeline" begin
             df = DataFrame(x1=rand(100), x2=rand(100), target=rand(100))

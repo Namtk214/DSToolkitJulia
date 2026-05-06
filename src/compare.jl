@@ -1,10 +1,3 @@
-# ==============================================================================
-# DSToolkit — Auto-Compare & Pretty Display
-# ==============================================================================
-
-# ==============================================================================
-# Main Entry Points
-# ==============================================================================
 
 """
     auto_compare(data::ToolkitData; ratio=0.8) → ComparisonResult
@@ -63,9 +56,8 @@ function auto_compare(X_train::AbstractArray{T,3}, y_train::AbstractArray,
     return _compare_deep_ts(X_train, y_train, X_test, y_test)
 end
 
-# ==============================================================================
 # Internal Comparison Runners
-# ==============================================================================
+
 
 function _compare_regression(X_train, y_train, X_test, y_test)
     models = [
@@ -252,9 +244,7 @@ function _compare_deep_ts(X_train, y_train, X_test, y_test)
     return ComparisonResult(:timeseries_deep, result_df, best_model, best_name, trained_models)
 end
 
-# ==============================================================================
 # Result DataFrame Builder
-# ==============================================================================
 
 function _build_result_df(rows::Vector, metric_keys::Vector{String})
     model_names = String[r["Model"] for r in rows]
@@ -265,9 +255,7 @@ function _build_result_df(rows::Vector, metric_keys::Vector{String})
     return df
 end
 
-# ==============================================================================
 # Pretty Display
-# ==============================================================================
 
 function _display_results(df::DataFrame, task::Symbol, best_name::String)
     println()

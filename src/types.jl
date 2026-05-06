@@ -1,7 +1,3 @@
-# ==============================================================================
-# DSToolkit — Type Hierarchy & Struct Definitions
-# ==============================================================================
-
 # --- Abstract Type Hierarchy ---
 abstract type AbstractToolkitModel end
 abstract type TabularModel <: AbstractToolkitModel end
@@ -41,9 +37,7 @@ struct ComparisonResult
     all_models::Vector{Pair{String, AbstractToolkitModel}}
 end
 
-# ==============================================================================
 # Regression Models (9)
-# ==============================================================================
 mutable struct LinearReg <: RegressionModel
     is_trained::Bool
     machine::Any
@@ -107,9 +101,7 @@ mutable struct SVMReg <: RegressionModel
     SVMReg() = new(false, nothing)
 end
 
-# ==============================================================================
 # Classification Models (8)
-# ==============================================================================
 mutable struct LogisticCls <: ClassificationModel
     is_trained::Bool
     machine::Any
@@ -164,9 +156,7 @@ mutable struct NaiveBayesCls <: ClassificationModel
     NaiveBayesCls() = new(false, nothing)
 end
 
-# ==============================================================================
 # Time Series — Statistical Models (2)
-# ==============================================================================
 mutable struct ARIMAModel <: StatTimeSeriesModel
     order::Tuple{Int,Int,Int}
     is_trained::Bool
@@ -182,9 +172,8 @@ mutable struct ETSModel <: StatTimeSeriesModel
     ETSModel() = new(false, nothing, Float64[])
 end
 
-# ==============================================================================
+
 # Time Series — Deep Learning Models (3)
-# ==============================================================================
 
 """
     SeqChain

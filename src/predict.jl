@@ -1,7 +1,3 @@
-# ==============================================================================
-# DSToolkit — predict Methods (Proper Multiple Dispatch)
-# ==============================================================================
-
 # --- Guard: ensure model is trained ---
 function _assert_trained(model::AbstractToolkitModel)
     if !model.is_trained
@@ -10,9 +6,7 @@ function _assert_trained(model::AbstractToolkitModel)
     end
 end
 
-# ==============================================================================
 # Tabular Models — Regression
-# ==============================================================================
 
 """
     predict(model::RegressionModel, X::DataFrame) → Vector{Float64}
@@ -29,9 +23,7 @@ function predict(model::RegressionModel, X::DataFrame)
     return Float64.(preds)
 end
 
-# ==============================================================================
 # Tabular Models — Classification
-# ==============================================================================
 
 """
     predict(model::ClassificationModel, X::DataFrame) → CategoricalVector
@@ -59,9 +51,7 @@ function predict_proba(model::ClassificationModel, X::DataFrame)
     return MLJ.predict(model.machine, X)
 end
 
-# ==============================================================================
 # Statistical Time Series
-# ==============================================================================
 
 """
     predict(model::StatTimeSeriesModel, steps::Int) → Vector{Float64}
@@ -76,9 +66,7 @@ function predict(model::StatTimeSeriesModel, steps::Int)
     return Float64[v[1] for v in forecasted.expected_value]
 end
 
-# ==============================================================================
 # Deep Learning Time Series
-# ==============================================================================
 
 """
     predict(model::DeepTimeSeriesModel, X::AbstractArray{T,3}) → Matrix{Float32}

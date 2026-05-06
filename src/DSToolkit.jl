@@ -1,8 +1,6 @@
 module DSToolkit
 
-# ==============================================================================
 # Dependencies
-# ==============================================================================
 using DataFrames, Statistics, Random
 using CategoricalArrays
 using PrettyTables
@@ -21,9 +19,7 @@ import MLJXGBoostInterface
 import MLJLinearModels
 import NearestNeighborModels
 
-# ==============================================================================
 # Sub-modules (order matters — types first, then logic)
-# ==============================================================================
 include("types.jl")
 include("ingest.jl")
 include("split.jl")
@@ -33,9 +29,7 @@ include("evaluate.jl")
 include("compare.jl")
 include("persistence.jl")
 
-# ==============================================================================
 # Exports — Public API
-# ==============================================================================
 
 # Data ingestion & splitting
 export ingest_data, detect_task, train_test_split, ToolkitData

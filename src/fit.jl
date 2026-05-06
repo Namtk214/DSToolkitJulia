@@ -1,7 +1,3 @@
-# ==============================================================================
-# DSToolkit — fit! Methods (Proper Multiple Dispatch)
-# ==============================================================================
-
 # --- Pre-fit validation ---
 function _check_before_fit(X::DataFrame, y::AbstractVector)
     nrow(X) == 0 && error("Cannot train on empty data.")
@@ -9,9 +5,7 @@ function _check_before_fit(X::DataFrame, y::AbstractVector)
     nrow(X) != length(y) && error("Row mismatch: X=$(nrow(X)), y=$(length(y)).")
 end
 
-# ==============================================================================
 # Regression Models — Each gets its own fit! via dispatch
-# ==============================================================================
 
 function fit!(model::LinearReg, X::DataFrame, y::AbstractVector)
     _check_before_fit(X, y)
@@ -118,9 +112,7 @@ function fit!(model::SVMReg, X::DataFrame, y::AbstractVector)
     return model
 end
 
-# ==============================================================================
 # Classification Models — Each gets its own fit! via dispatch
-# ==============================================================================
 
 function fit!(model::LogisticCls, X::DataFrame, y::AbstractVector)
     _check_before_fit(X, y)
@@ -213,9 +205,7 @@ function fit!(model::NaiveBayesCls, X::DataFrame, y::AbstractVector)
     return model
 end
 
-# ==============================================================================
 # Statistical Time Series Models
-# ==============================================================================
 
 function fit!(model::ARIMAModel, y::AbstractVector)
     validate_timeseries(y)
@@ -241,9 +231,7 @@ function fit!(model::ETSModel, y::AbstractVector)
     return model
 end
 
-# ==============================================================================
-# Deep Learning Time Series Models (Proper Flux Implementation)
-# ==============================================================================
+# Deep Learning Time Series Models
 
 """
     fit!(model::DeepTimeSeriesModel, X, y)

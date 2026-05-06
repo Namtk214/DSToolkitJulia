@@ -1,10 +1,4 @@
-# ==============================================================================
-# DSToolkit — Evaluation Metrics
-# ==============================================================================
-
-# ==============================================================================
 # Regression Metrics
-# ==============================================================================
 
 """
     evaluate(model::RegressionModel, X_test::DataFrame, y_test) → Dict
@@ -39,9 +33,7 @@ function regression_metrics(preds::AbstractVector, truth::AbstractVector)
     )
 end
 
-# ==============================================================================
 # Classification Metrics
-# ==============================================================================
 
 """
     evaluate(model::ClassificationModel, X_test::DataFrame, y_test) → Dict
@@ -96,9 +88,7 @@ end
 _unwrap(x::CategoricalValue) = MLJ.unwrap(x)
 _unwrap(x) = x
 
-# ==============================================================================
 # Time Series Metrics
-# ==============================================================================
 
 """
     evaluate(model::StatTimeSeriesModel, y_test::AbstractVector) → Dict
