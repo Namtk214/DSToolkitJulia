@@ -64,6 +64,7 @@ function classification_metrics(preds, truth)
     classes = sort(unique(vcat(preds_plain, truth_plain)))
     precisions = Float64[]
     recalls = Float64[]
+    f1_scores = Float64[]
 
     for c in classes
         tp = sum((preds_plain .== c) .& (truth_plain .== c))
@@ -72,14 +73,16 @@ function classification_metrics(preds, truth)
 
         prec = (tp + fp) > 0 ? tp / (tp + fp) : 0.0
         rec  = (tp + fn) > 0 ? tp / (tp + fn) : 0.0
+        f1   = (prec + rec) > 0 ? 2 * prec * rec / (prec + rec) : 0.0
+        
         push!(precisions, prec)
         push!(recalls, rec)
+        push!(f1_scores, f1)
     end
 
     macro_prec = mean(precisions)
     macro_rec  = mean(recalls)
-    macro_f1   = (macro_prec + macro_rec) > 0 ?
-                 2 * macro_prec * macro_rec / (macro_prec + macro_rec) : 0.0
+    macro_f1   = mean(f1_scores)
 
     return Dict{String,Float64}(
         "Accuracy"  => accuracy,
