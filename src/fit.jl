@@ -16,7 +16,8 @@ end
 function fit!(model::LinearReg, X::DataFrame, y::AbstractVector)
     _check_before_fit(X, y)
     ModelType = MLJ.@load LinearRegressor pkg=GLM verbosity=0
-    mach = MLJ.machine(ModelType(), X, y)
+    pipe = MLJ.Standardizer() |> ModelType()
+    mach = MLJ.machine(pipe, X, y)
     MLJ.fit!(mach, verbosity=0)
     model.machine = mach
     model.is_trained = true
@@ -27,7 +28,8 @@ end
 function fit!(model::RidgeReg, X::DataFrame, y::AbstractVector)
     _check_before_fit(X, y)
     ModelType = MLJ.@load RidgeRegressor pkg=MLJLinearModels verbosity=0
-    mach = MLJ.machine(ModelType(lambda=model.lambda), X, y)
+    pipe = MLJ.Standardizer() |> ModelType(lambda=model.lambda)
+    mach = MLJ.machine(pipe, X, y)
     MLJ.fit!(mach, verbosity=0)
     model.machine = mach
     model.is_trained = true
@@ -38,7 +40,8 @@ end
 function fit!(model::LassoReg, X::DataFrame, y::AbstractVector)
     _check_before_fit(X, y)
     ModelType = MLJ.@load LassoRegressor pkg=MLJLinearModels verbosity=0
-    mach = MLJ.machine(ModelType(lambda=model.lambda), X, y)
+    pipe = MLJ.Standardizer() |> ModelType(lambda=model.lambda)
+    mach = MLJ.machine(pipe, X, y)
     MLJ.fit!(mach, verbosity=0)
     model.machine = mach
     model.is_trained = true
@@ -49,7 +52,8 @@ end
 function fit!(model::ElasticNetReg, X::DataFrame, y::AbstractVector)
     _check_before_fit(X, y)
     ModelType = MLJ.@load ElasticNetRegressor pkg=MLJLinearModels verbosity=0
-    mach = MLJ.machine(ModelType(lambda=model.lambda, gamma=model.alpha), X, y)
+    pipe = MLJ.Standardizer() |> ModelType(lambda=model.lambda, gamma=model.alpha)
+    mach = MLJ.machine(pipe, X, y)
     MLJ.fit!(mach, verbosity=0)
     model.machine = mach
     model.is_trained = true
@@ -93,7 +97,8 @@ end
 function fit!(model::KNNReg, X::DataFrame, y::AbstractVector)
     _check_before_fit(X, y)
     ModelType = MLJ.@load KNNRegressor pkg=NearestNeighborModels verbosity=0
-    mach = MLJ.machine(ModelType(K=model.K), X, y)
+    pipe = MLJ.Standardizer() |> ModelType(K=model.K)
+    mach = MLJ.machine(pipe, X, y)
     MLJ.fit!(mach, verbosity=0)
     model.machine = mach
     model.is_trained = true
@@ -104,7 +109,8 @@ end
 function fit!(model::SVMReg, X::DataFrame, y::AbstractVector)
     _check_before_fit(X, y)
     ModelType = MLJ.@load EpsilonSVR pkg=LIBSVM verbosity=0
-    mach = MLJ.machine(ModelType(), X, y)
+    pipe = MLJ.Standardizer() |> ModelType()
+    mach = MLJ.machine(pipe, X, y)
     MLJ.fit!(mach, verbosity=0)
     model.machine = mach
     model.is_trained = true
@@ -119,7 +125,8 @@ end
 function fit!(model::LogisticCls, X::DataFrame, y::AbstractVector)
     _check_before_fit(X, y)
     ModelType = MLJ.@load LogisticClassifier pkg=MLJLinearModels verbosity=0
-    mach = MLJ.machine(ModelType(), X, y)
+    pipe = MLJ.Standardizer() |> ModelType()
+    mach = MLJ.machine(pipe, X, y)
     MLJ.fit!(mach, verbosity=0)
     model.machine = mach
     model.is_trained = true
@@ -174,7 +181,8 @@ end
 function fit!(model::KNNCls, X::DataFrame, y::AbstractVector)
     _check_before_fit(X, y)
     ModelType = MLJ.@load KNNClassifier pkg=NearestNeighborModels verbosity=0
-    mach = MLJ.machine(ModelType(K=model.K), X, y)
+    pipe = MLJ.Standardizer() |> ModelType(K=model.K)
+    mach = MLJ.machine(pipe, X, y)
     MLJ.fit!(mach, verbosity=0)
     model.machine = mach
     model.is_trained = true
@@ -185,7 +193,8 @@ end
 function fit!(model::SVMCls, X::DataFrame, y::AbstractVector)
     _check_before_fit(X, y)
     ModelType = MLJ.@load SVC pkg=LIBSVM verbosity=0
-    mach = MLJ.machine(ModelType(), X, y)
+    pipe = MLJ.Standardizer() |> ModelType()
+    mach = MLJ.machine(pipe, X, y)
     MLJ.fit!(mach, verbosity=0)
     model.machine = mach
     model.is_trained = true
