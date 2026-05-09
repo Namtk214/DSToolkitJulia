@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DSToolkit Visualization Demo</title>
+    <style>
+        :root {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: #eef3f8;
+            color: #17202a;
+        }
+        * { box-sizing: border-box; }
+        body { margin: 0; }
+        header {
+            background: #18324a;
+            color: white;
+            padding: 22px max(22px, calc((100vw - 1180px) / 2));
+        }
+        header a { color: #d8e8ff; text-decoration: none; font-weight: 650; }
+        header h1 { margin: 12px 0 4px; }
+        main { max-width: 1180px; margin: 0 auto; padding: 24px; }
+        .toolbar, .card {
+            background: white;
+            border: 1px solid #d9e3ee;
+            border-radius: 8px;
+            box-shadow: 0 1px 2px rgba(20, 35, 50, 0.08);
+        }
+        .toolbar {
+            padding: 16px;
+            display: grid;
+            grid-template-columns: minmax(220px, 420px) auto;
+            gap: 14px;
+            align-items: end;
+        }
+        label { display: block; font-weight: 700; margin-bottom: 7px; color: #314254; }
+        select, button {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 6px;
+            font: inherit;
+        }
+        select { border: 1px solid #c8d5e2; background: white; }
+        button {
+            border: 0;
+            background: #2f6f68;
+            color: white;
+            font-weight: 750;
+            cursor: pointer;
+        }
+        .summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 14px;
+            margin-top: 16px;
+        }
+        .metric { padding: 16px; }
+        .metric .label { color: #667789; font-size: 0.9rem; }
+        .metric .value { font-size: 1.7rem; font-weight: 800; margin-top: 6px; }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+            gap: 16px;
+            margin-top: 16px;
+        }
+        .card { padding: 16px; min-width: 0; }
+        .card h2 { margin: 0 0 12px; font-size: 1.05rem; color: #25384b; }
+        canvas {
+            width: 100%;
+            height: 260px;
+            display: block;
+            background: #fbfdff;
+            border: 1px solid #edf2f7;
+            border-radius: 6px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.92rem;
+        }
+        th, td {
+            border-bottom: 1px solid #e7edf4;
+            padding: 8px;
+            text-align: left;
+        }
+        th { color: #516274; background: #f5f8fb; }
+        .wide { grid-column: 1 / -1; }
+        .status { margin-top: 12px; color: #516274; }
+        .description-box {
+            margin-top: 16px;
+            background: #f0f6ff;
+            border: 1px solid #c5d8ef;
+            border-left: 4px solid #2f6f68;
+            border-radius: 6px;
+            padding: 14px 18px;
+            font-size: 0.97rem;
+            line-height: 1.6;
+            color: #25384b;
+        }
+        .samples-section {
+            margin-top: 16px;
+            background: white;
+            border: 1px solid #d9e3ee;
+            border-radius: 8px;
+            box-shadow: 0 1px 2px rgba(20,35,50,0.08);
+            padding: 16px;
+            overflow-x: auto;
+        }
+        .samples-section h2 { margin: 0 0 12px; font-size: 1.05rem; color: #25384b; }
+        .samples-section table { font-size: 0.88rem; }
+        .samples-section td { font-family: monospace; }
+        @media (max-width: 720px) {
+            .toolbar { grid-template-columns: 1fr; }
+            canvas { height: 230px; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <a href="/">DSToolkit Demo</a>
+        <h1>Dataset Visualization</h1>
+        <p>Select any bundled dataset and inspect its charts.</p>
+    </header>
+    <main>
+        <div class="toolbar">
+            <div>
+                <label for="dataset-select">Dataset</label>
+                <select id="dataset-select"></select>
+            </div>
+            <button id="load-btn">Visualize Dataset</button>
+        </div>
+        <div class="status" id="status">Loading catalog...</div>
+        <div class="summary" id="summary"></div>
+        <div id="description-box"></div>
+        <div id="samples-box"></div>
+        <div class="grid" id="charts"></div>
+    </main>
+
+    <script>
+        let catalog = null;
+        let current = null;
+        const palette = ['#2f6f68', '#294e75', '#b45f3c', '#6b7f32', '#7a5c91', '#c08a2d', '#4e7f9f'];
+
+        const datasetSelect = document.getElementById('dataset-select');
+        const statusEl = document.getElementById('status');
+        const chartsEl = document.getElementById('charts');
+        const summaryEl = document.getElementById('summary');
+        const descriptionBoxEl = document.getElementById('description-box');
+        const samplesBoxEl = document.getElementById('samples-box');
+
+        function fmt(value) {
+            return Number(value).toLocaleString(undefined, { maximumFractionDigits: 3 });
+        }
+
+        function setupCanvas(canvas) {
+            const rect = canvas.getBoundingClientRect();
+            const scale = window.devicePixelRatio || 1;
+            canvas.width = Math.max(320, Math.floor(rect.width * scale));
+            canvas.height = Math.max(220, Math.floor(rect.height * scale));
+            const ctx = canvas.getContext('2d');
+            ctx.setTransform(scale, 0, 0, scale, 0, 0);
+            return { ctx, w: canvas.width / scale, h: canvas.height / scale };
+        }
+
+        function card(title, id, wide = false) {
+            const node = document.createElement('section');
+            node.className = wide ? 'card wide' : 'card';
+            node.innerHTML = `<h2>${title}</h2><canvas id="${id}"></canvas>`;
+            chartsEl.appendChild(node);
+            return node.querySelector('canvas');
+        }
+
+        function tableCard(title, html, wide = false) {
+            const node = document.createElement('section');
+            node.className = wide ? 'card wide' : 'card';
+            node.innerHTML = `<h2>${title}</h2>${html}`;
+            chartsEl.appendChild(node);
+        }
+
+        function drawAxes(ctx, w, h, pad) {
+            ctx.strokeStyle = '#c9d5e2';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(pad, pad);
+            ctx.lineTo(pad, h - pad);
+            ctx.lineTo(w - pad, h - pad);
+            ctx.stroke();
+        }
+
+        function drawBarChart(canvas, labels, values) {
+            const { ctx, w, h } = setupCanvas(canvas);
+            const pad = 38;
+            const max = Math.max(1, ...values);
+            ctx.clearRect(0, 0, w, h);
+            drawAxes(ctx, w, h, pad);
+            const gap = 6;
+            const bw = Math.max(8, (w - pad * 2 - gap * (values.length - 1)) / values.length);
+            values.forEach((value, i) => {
+                const x = pad + i * (bw + gap);
+                const bh = (h - pad * 2) * (value / max);
+                ctx.fillStyle = palette[i % palette.length];
+                ctx.fillRect(x, h - pad - bh, bw, bh);
+                ctx.fillStyle = '#34495e';
+                ctx.font = '11px sans-serif';
+                ctx.save();
+                ctx.translate(x + bw / 2, h - 12);
+                ctx.rotate(-Math.PI / 5);
+                ctx.textAlign = 'right';
+                ctx.fillText(String(labels[i]).slice(0, 16), 0, 0);
+                ctx.restore();
+            });
+        }
+
+        function drawHistogram(canvas, hist) {
+            const labels = hist.counts.map((_, i) => `${fmt(hist.edges[i])}`);
+            drawBarChart(canvas, labels, hist.counts);
+        }
+
+        function drawLineChart(canvas, values) {
+            const { ctx, w, h } = setupCanvas(canvas);
+            const pad = 38;
+            const min = Math.min(...values);
+            const max = Math.max(...values);
+            const span = max - min || 1;
+            ctx.clearRect(0, 0, w, h);
+            drawAxes(ctx, w, h, pad);
+            ctx.strokeStyle = '#2f6f68';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            values.forEach((value, i) => {
+                const x = pad + (i / Math.max(1, values.length - 1)) * (w - pad * 2);
+                const y = h - pad - ((value - min) / span) * (h - pad * 2);
+                i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+            ctx.fillStyle = '#34495e';
+            ctx.font = '12px sans-serif';
+            ctx.fillText(`min ${fmt(min)}`, pad, pad - 10);
+            ctx.fillText(`max ${fmt(max)}`, w - pad - 72, pad - 10);
+        }
+
+        function drawScatter(canvas, scatter) {
+            const points = scatter.points || [];
+            const { ctx, w, h } = setupCanvas(canvas);
+            const pad = 38;
+            ctx.clearRect(0, 0, w, h);
+            drawAxes(ctx, w, h, pad);
+            if (!points.length) return;
+            const xs = points.map((p) => p.x);
+            const ys = points.map((p) => p.y);
+            const xmin = Math.min(...xs), xmax = Math.max(...xs), ymin = Math.min(...ys), ymax = Math.max(...ys);
+            const xspan = xmax - xmin || 1, yspan = ymax - ymin || 1;
+            const targets = [...new Set(points.map((p) => p.target))];
+            points.forEach((p) => {
+                const x = pad + ((p.x - xmin) / xspan) * (w - pad * 2);
+                const y = h - pad - ((p.y - ymin) / yspan) * (h - pad * 2);
+                ctx.fillStyle = palette[targets.indexOf(p.target) % palette.length];
+                ctx.globalAlpha = 0.72;
+                ctx.beginPath();
+                ctx.arc(x, y, 3, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = '#34495e';
+            ctx.font = '12px sans-serif';
+            ctx.fillText(scatter.x_feature, pad, h - 10);
+            ctx.save();
+            ctx.translate(12, h / 2);
+            ctx.rotate(-Math.PI / 2);
+            ctx.fillText(scatter.y_feature, 0, 0);
+            ctx.restore();
+        }
+
+        function drawHeatmap(canvas, corr) {
+            const { ctx, w, h } = setupCanvas(canvas);
+            const cols = corr.columns || [];
+            ctx.clearRect(0, 0, w, h);
+            if (!cols.length) return;
+            const pad = 70;
+            const size = Math.min((w - pad - 16) / cols.length, (h - pad - 16) / cols.length);
+            cols.forEach((row, i) => {
+                cols.forEach((col, j) => {
+                    const value = corr.matrix[i][j];
+                    const intensity = Math.round(230 - Math.abs(value) * 150);
+                    ctx.fillStyle = value >= 0 ? `rgb(${intensity}, ${230}, ${220})` : `rgb(${230}, ${intensity}, ${intensity})`;
+                    ctx.fillRect(pad + j * size, 16 + i * size, size - 1, size - 1);
+                });
+            });
+            ctx.fillStyle = '#34495e';
+            ctx.font = '11px sans-serif';
+            cols.forEach((name, i) => {
+                ctx.fillText(name.slice(0, 9), 8, 16 + i * size + size / 2);
+                ctx.save();
+                ctx.translate(pad + i * size + size / 2, h - 10);
+                ctx.rotate(-Math.PI / 4);
+                ctx.fillText(name.slice(0, 9), 0, 0);
+                ctx.restore();
+            });
+        }
+
+        function renderDescription(data) {
+            if (!data.description) { descriptionBoxEl.innerHTML = ''; return; }
+            descriptionBoxEl.innerHTML = `<div class="description-box">${data.description}</div>`;
+        }
+
+        function cellValue(v) {
+            if (v === undefined) return '';
+            return typeof v === 'number' ? fmt(v) : v;
+        }
+
+        function renderSamples(data) {
+            const s = data.samples;
+            if (!s || !s.rows || s.rows.length === 0) { samplesBoxEl.innerHTML = ''; return; }
+            const thead = s.columns.map((c) => '<th>' + c + '</th>').join('');
+            const tbody = s.rows.map((row) => {
+                const cells = s.columns.map((c) => '<td>' + cellValue(row[c]) + '</td>').join('');
+                return '<tr>' + cells + '</tr>';
+            }).join('');
+            samplesBoxEl.innerHTML = '<div class="samples-section"><h2>Sample Data (first ' + s.rows.length + ' rows)</h2><table><thead><tr>' + thead + '</tr></thead><tbody>' + tbody + '</tbody></table></div>';
+        }
+
+        function renderSummary(data) {
+            summaryEl.innerHTML = `
+                <div class="card metric"><div class="label">Dataset</div><div class="value">${data.dataset}</div></div>
+                <div class="card metric"><div class="label">Task</div><div class="value">${data.task}</div></div>
+                <div class="card metric"><div class="label">Samples</div><div class="value">${fmt(data.n_samples)}</div></div>
+                <div class="card metric"><div class="label">Features</div><div class="value">${fmt(data.n_features)}</div></div>
+            `;
+        }
+
+        function renderTable(data) {
+            if (data.task === 'timeseries') {
+                const s = data.series_stats;
+                tableCard('Series Summary', `<table><tbody>
+                    <tr><th>min</th><td>${fmt(s.min)}</td><th>q1</th><td>${fmt(s.q1)}</td></tr>
+                    <tr><th>median</th><td>${fmt(s.median)}</td><th>mean</th><td>${fmt(s.mean)}</td></tr>
+                    <tr><th>q3</th><td>${fmt(s.q3)}</td><th>max</th><td>${fmt(s.max)}</td></tr>
+                </tbody></table>`);
+                return;
+            }
+            const rows = data.feature_schema.map((item) => {
+                if (item.kind === 'category') {
+                    const counts = data.categorical[item.name].counts;
+                    return `<tr><td>${item.name}</td><td>category</td><td colspan="5">${Object.entries(counts).map(([k, v]) => `${k}: ${v}`).join(', ')}</td></tr>`;
+                }
+                const s = data.numeric[item.name].summary;
+                return `<tr><td>${item.name}</td><td>number</td><td>${fmt(s.min)}</td><td>${fmt(s.q1)}</td><td>${fmt(s.median)}</td><td>${fmt(s.mean)}</td><td>${fmt(s.max)}</td></tr>`;
+            }).join('');
+            tableCard('Feature Summary', `<table><thead><tr><th>Feature</th><th>Type</th><th>Min</th><th>Q1</th><th>Median</th><th>Mean</th><th>Max</th></tr></thead><tbody>${rows}</tbody></table>`, true);
+        }
+
+        function renderCharts(data) {
+            chartsEl.innerHTML = '';
+            renderTable(data);
+
+            if (data.task === 'timeseries') {
+                drawLineChart(card('Time Series', 'series-line', true), data.series);
+                drawHistogram(card('Value Distribution', 'series-hist'), data.series_histogram);
+                return;
+            }
+
+            if (data.task === 'regression') {
+                drawHistogram(card('Target Distribution', 'target-dist'), data.target_histogram);
+            } else {
+                const targetCounts = data.target_distribution || {};
+                drawBarChart(card('Target Distribution', 'target-dist'), Object.keys(targetCounts), Object.values(targetCounts));
+            }
+
+            for (const [name, item] of Object.entries(data.numeric)) {
+                drawHistogram(card(`Distribution: ${name}`, `hist-${name}`), item.histogram);
+            }
+
+            for (const [name, item] of Object.entries(data.categorical)) {
+                drawBarChart(card(`Category Counts: ${name}`, `cat-${name}`), Object.keys(item.counts), Object.values(item.counts));
+            }
+
+            drawHeatmap(card('Feature Correlation', 'correlation', true), data.correlation);
+            drawScatter(card(`Scatter: ${data.scatter.x_feature} vs ${data.scatter.y_feature}`, 'scatter', true), data.scatter);
+        }
+
+        async function loadDataset() {
+            const dataset = datasetSelect.value;
+            statusEl.textContent = 'Loading visualization data...';
+            const response = await fetch(`/api/visualization-data?dataset=${dataset}`);
+            const data = await response.json();
+            if (data.error) throw new Error(data.error);
+            current = data;
+            renderSummary(data);
+            renderDescription(data);
+            renderSamples(data);
+            renderCharts(data);
+            statusEl.textContent = `${data.dataset} visualization loaded.`;
+        }
+
+        async function init() {
+            const response = await fetch('/api/catalog');
+            catalog = await response.json();
+            datasetSelect.innerHTML = catalog.datasets.map((item) =>
+                `<option value="${item.id}">${item.label} (${item.task})</option>`
+            ).join('');
+            await loadDataset();
+        }
+
+        document.getElementById('load-btn').addEventListener('click', () => {
+            loadDataset().catch((error) => statusEl.textContent = `Failed: ${error.message}`);
+        });
+        datasetSelect.addEventListener('change', () => {
+            loadDataset().catch((error) => statusEl.textContent = `Failed: ${error.message}`);
+        });
+        window.addEventListener('resize', () => current && renderCharts(current));
+
+        init().catch((error) => statusEl.textContent = `Failed: ${error.message}`);
+    </script>
+</body>
+</html>

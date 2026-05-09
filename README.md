@@ -1,19 +1,24 @@
-# DSToolkit.jl 🚀
+# DSToolkit.jl
 
-A high-level, unified Machine Learning toolkit for Julia. DSToolkit abstracts away `MLJ.jl`, `Flux.jl`, and `StateSpaceModels.jl` behind a single, consistent API for **Tabular Regression**, **Tabular Classification**, **Statistical Time Series Forecasting**, and **Deep Learning Time Series**.
+A high-level, unified Machine Learning toolkit for Julia. DSToolkit wraps `MLJ.jl`, `Flux.jl`, and `StateSpaceModels.jl` behind a single consistent API for **Tabular Regression**, **Tabular Classification**, and **Time Series Forecasting** (statistical and deep learning).
 
 ## Features
 
-- **Flexible Data Ingestion** — Accepts `DataFrame`, `Matrix`, `CSV`, `JLD2`, `Dict`, `NamedTuple`, or raw `Vector`
-- **Auto Task Detection** — Reads your target data and detects regression vs classification vs time series
-- **22 Algorithms** — All popular ML methods in one toolkit
-- **Auto-Compare** — Train all suitable models, compare metrics, display results, pick the best
-- **Robust Persistence** — Save trained models to disk and load them back for inference
+- **9 Built-in Datasets** — ready-to-use datasets for classification, regression, and time series
+- **Flexible Data Ingestion** — accepts `DataFrame`, `Matrix`, `CSV`, `Dict`, `NamedTuple`, or raw `Vector`
+- **Data Preprocessing** — missing value imputation, feature scaling, encoding, and feature engineering
+- **Auto Task Detection** — infers regression / classification / timeseries from target type
+- **22 Algorithms** — all major ML methods behind one interface
+- **Auto-Compare** — trains all suitable models, ranks by metric, returns the best
+- **Visualization** — distribution plots, correlation heatmaps, model comparison charts, time series plots
+- **Inference API** — batch and parallel prediction with optional preprocessing pipelines
+- **Model Persistence** — save trained models to disk and reload in any session
+- **Web Demo** — interactive HTTP demo server for exploring datasets and running predictions
 
 ## Supported Models
 
 ### Tabular Regression (9)
-| Model | Backend Package |
+| Model | Backend |
 |---|---|
 | Linear Regression | `GLM` |
 | Ridge Regression | `MLJLinearModels` |
@@ -26,7 +31,7 @@ A high-level, unified Machine Learning toolkit for Julia. DSToolkit abstracts aw
 | SVM (Epsilon SVR) | `LIBSVM` |
 
 ### Tabular Classification (8)
-| Model | Backend Package |
+| Model | Backend |
 |---|---|
 | Logistic Regression | `MLJLinearModels` |
 | Decision Tree | `DecisionTree` |
@@ -38,13 +43,13 @@ A high-level, unified Machine Learning toolkit for Julia. DSToolkit abstracts aw
 | Gaussian Naive Bayes | `NaiveBayes` |
 
 ### Time Series — Statistical (2)
-| Model | Backend Package |
+| Model | Backend |
 |---|---|
 | ARIMA | `StateSpaceModels` |
 | ETS (Exponential Smoothing) | `StateSpaceModels` |
 
 ### Time Series — Deep Learning (3)
-| Model | Backend Package |
+| Model | Backend |
 |---|---|
 | RNN | `Flux` |
 | LSTM | `Flux` |
@@ -52,27 +57,27 @@ A high-level, unified Machine Learning toolkit for Julia. DSToolkit abstracts aw
 
 ## Installation
 
-Since this is an unregistered local package, open the Julia REPL, press `]` to enter the Pkg prompt, and run:
+This is an unregistered local package. From the Julia REPL, press `]` to enter the Pkg prompt:
 
 ```julia
-pkg> develop C:/path/to/DSToolkitJulia
+pkg> develop /path/to/DSToolkitJulia
 ```
 
 Or from a script:
 
 ```julia
 using Pkg
-Pkg.develop(path="C:/path/to/DSToolkitJulia")
+Pkg.develop(path="/path/to/DSToolkitJulia")
 ```
 
 ## Quick Start
 
-### 1. Ingest Data (Flexible Input)
+### 1. Ingest Data
 
 ```julia
 using DSToolkit
 
-# From a DataFrame (auto-detects task type)
+# From a DataFrame — auto-detects task type from target column
 data = ingest_data(df; target=:price)
 
 # From a CSV file
@@ -80,9 +85,6 @@ data = ingest_data("housing_data.csv"; target=:price)
 
 # From a Matrix + Vector
 data = ingest_data(X_matrix, y_vector)
-
-# From a Dict (e.g., output from a preprocessing pipeline)
-data = ingest_data(Dict("X" => features, "y" => labels))
 
 # Univariate time series
 data = ingest_data(sales_vector; task=:timeseries)
@@ -95,12 +97,11 @@ data = ingest_data(df; target=:class, task=:classification)
 
 ```julia
 result = auto_compare(data)
-# Trains all 9 regression (or 8 classification) models,
-# prints a comparison table, and returns the best model.
+# Trains all suitable models, prints a ranked comparison table,
+# and returns the best model.
 
-# Access results:
-result.best_model       # The top-performing model
-result.best_model_name  # e.g., "XGBoost"
+result.best_model       # top-performing trained model
+result.best_model_name  # e.g. "XGBoost"
 result.results          # DataFrame of all metrics
 result.all_models       # Vector of (name => model) pairs
 ```
@@ -113,7 +114,7 @@ X_train, X_test, y_train, y_test = train_test_split(data)
 model = XGBoostReg(num_round=200, max_depth=8)
 fit!(model, X_train, y_train)
 
-preds = predict(model, X_test)
+preds   = predict(model, X_test)
 metrics = evaluate(model, X_test, y_test)
 # Dict("RMSE" => 0.032, "MAE" => 0.025, "R²" => 0.987, "MAPE" => 3.2)
 ```
@@ -121,13 +122,9 @@ metrics = evaluate(model, X_test, y_test)
 ### 4. Save & Load Models
 
 ```julia
-# Save
 save_model(result.best_model, "my_best_model")
 
-# Load (in another session or script)
 model = load_toolkit_model("my_best_model.jld2")
-
-# Use for inference on new data
 predictions = predict(model, new_data)
 ```
 
@@ -135,15 +132,105 @@ predictions = predict(model, new_data)
 
 ```julia
 # Statistical (ARIMA / ETS)
-data = ingest_data(y_vector; task=:timeseries)
+data   = ingest_data(y_vector; task=:timeseries)
 result = auto_compare(data)
-forecast = predict(result.best_model, 30)  # 30 steps ahead
+forecast = predict(result.best_model, 30)   # 30 steps ahead
 
 # Deep Learning (RNN / LSTM / GRU)
 X_seq = rand(Float32, n_features, seq_len, n_samples)
 y_seq = rand(Float32, 1, n_samples)
 X_tr, X_te, y_tr, y_te = train_test_split(X_seq, y_seq)
 result = auto_compare(X_tr, y_tr, X_te, y_te)
+```
+
+## Built-in Datasets
+
+### Classification
+```julia
+data = load_iris()          # 150 samples, 4 features, 3 classes
+data = load_titanic()       # 891 samples, binary classification
+data = load_wine_quality()  # 1 599 samples, quality ratings 3–8
+```
+
+### Regression
+```julia
+data = load_housing()       # 506 samples, 13 features (Boston Housing)
+data = load_diabetes()      # 442 samples, 10 clinical features
+data = load_synthetic_reg() # 1 000 samples, clean synthetic data
+```
+
+### Time Series
+```julia
+data = load_airline_passengers() # 144 months, seasonal trend
+data = load_stock_prices()       # 252 days, financial series
+data = load_temperature()        # 365 days, seasonal weather
+```
+
+```julia
+# List all datasets
+list_datasets()
+# => Dict(:classification => [...], :regression => [...], :timeseries => [...])
+```
+
+## Preprocessing
+
+```julia
+# Missing value imputation — strategies: :mean, :median, :mode, :forward
+data = impute_missing(data; strategy=:mean)
+
+# Feature scaling
+data = standardize(data)   # z-score  (mean=0, std=1)
+data = normalize(data)     # min-max  [0, 1]
+
+# Categorical encoding
+data = one_hot_encode(data, [:color, :size])
+data = label_encode(data,   [:category])
+
+# Feature engineering
+data = add_polynomial_features(data; degree=2)
+data = add_interaction_features(data, [(:feature1, :feature2)])
+
+# Chaining steps
+data = load_housing()
+data = impute_missing(data; strategy=:mean)
+data = standardize(data)
+result = auto_compare(data)
+```
+
+## Visualization
+
+Requires `Plots.jl` and `StatsPlots.jl`.
+
+```julia
+using Plots
+
+plot_histogram(data, :feature_name)
+plot_boxplot(data, :feature_name)
+plot_target_distribution(data)
+
+plot_correlation_heatmap(data)
+plot_feature_vs_target(data, :feature_name)
+
+result = auto_compare(data)
+plot_comparison_results(result)
+
+plot_timeseries(y_train, y_test, predictions)
+plot_forecast(model, y_train, horizon=30)
+```
+
+## Inference API
+
+```julia
+# Single prediction
+predictions = inference(model, new_data)
+
+# With preprocessing
+preprocess_fn = x -> standardize(impute_missing(x))
+predictions = inference_with_preprocessing(model, raw_data, preprocess_fn)
+
+# Batch and parallel prediction
+results = batch_predict(model, [batch1, batch2, batch3])
+results = parallel_predict(model, [chunk1, chunk2, chunk3])
 ```
 
 ## Evaluation Metrics
@@ -154,19 +241,49 @@ result = auto_compare(X_tr, y_tr, X_te, y_te)
 | Classification | Accuracy, Macro-Precision, Macro-Recall, Macro-F1 |
 | Time Series | RMSE, MAE, MAPE |
 
-## Pipeline Integration
+## Demo Server
 
-DSToolkit is designed as **Step 2** in a data pipeline:
+An interactive web demo is included. It runs on plain `HTTP.jl` with no additional dependencies.
 
-```
-[Step 1: Data Preprocessing] → cleaned data (any format)
-        ↓
-[Step 2: DSToolkit] → ingest_data() → auto_compare() or fit!()
-        ↓
-[Step 3: Deployment] → save_model() / load_toolkit_model() → predict()
+```julia
+julia --project=. demo/demo_server.jl
+# Server starts at http://localhost:8000
 ```
 
-The `ingest_data()` function accepts whatever format your preprocessing step outputs — `DataFrame`, `Matrix`, `Dict`, `NamedTuple`, CSV file, or JLD2 file. As long as the data is clean, DSToolkit handles the rest.
+Pages:
+| URL | Description |
+|---|---|
+| `/` | Home — select dataset and model, train, view metrics |
+| `/inference` | Run live predictions against the trained model |
+| `/visualization` | Explore dataset distributions, correlations, and sample rows |
+
+## Project Structure
+
+```
+DSToolkitJulia/
+├── src/
+│   ├── DSToolkit.jl        # module entry point and exports
+│   ├── config.jl           # centralised training defaults
+│   ├── ingest.jl           # data ingestion
+│   ├── split.jl            # train/test splitting
+│   ├── predict.jl          # predict() interface
+│   ├── persistence.jl      # save / load models
+│   ├── types/              # abstract and concrete model types
+│   ├── data/               # loaders and preprocessing
+│   ├── models/             # regression, classification, timeseries
+│   ├── training/           # fit! implementations
+│   ├── evaluation/         # metrics
+│   ├── comparison/         # auto_compare and display
+│   ├── inference/          # batch and parallel prediction
+│   └── visualization/      # plotting utilities
+├── demo/
+│   ├── demo_server.jl      # HTTP demo server
+│   └── views/              # HTML templates
+├── test/
+│   └── runtests.jl         # test suite (50+ test cases)
+├── data/                   # built-in CSV datasets
+└── Project.toml
+```
 
 ## License
 

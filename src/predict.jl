@@ -15,10 +15,11 @@ Predict continuous values for tabular regression models.
 """
 function predict(model::RegressionModel, X::DataFrame)
     _assert_trained(model)
+    X_pred = _prepare_tabular_features(X, model._feature_levels)
     if typeof(model.machine.model) <: MLJ.Probabilistic
-        preds = MLJ.predict_mean(model.machine, X)
+        preds = MLJ.predict_mean(model.machine, X_pred)
     else
-        preds = MLJ.predict(model.machine, X)
+        preds = MLJ.predict(model.machine, X_pred)
     end
     return Float64.(preds)
 end
@@ -33,10 +34,11 @@ Returns the mode (most likely class) of the predicted distribution.
 """
 function predict(model::ClassificationModel, X::DataFrame)
     _assert_trained(model)
+    X_pred = _prepare_tabular_features(X, model._feature_levels)
     if typeof(model.machine.model) <: MLJ.Probabilistic
-        preds = MLJ.predict_mode(model.machine, X)
+        preds = MLJ.predict_mode(model.machine, X_pred)
     else
-        preds = MLJ.predict(model.machine, X)
+        preds = MLJ.predict(model.machine, X_pred)
     end
     return preds
 end
@@ -48,7 +50,8 @@ Return class probability distributions for classification models.
 """
 function predict_proba(model::ClassificationModel, X::DataFrame)
     _assert_trained(model)
-    return MLJ.predict(model.machine, X)
+    X_pred = _prepare_tabular_features(X, model._feature_levels)
+    return MLJ.predict(model.machine, X_pred)
 end
 
 # Statistical Time Series
@@ -77,4 +80,31 @@ Returns `(output_dim, batch)`.
 function predict(model::DeepTimeSeriesModel, X::AbstractArray{T,3}) where T
     _assert_trained(model)
     return model._chain(Float32.(X))
+end
+
+"""
+    predict(model::DeepTimeSeriesModel, steps::Int) → Vector{Float64}
+
+Autoregressive forecast for deep time-series models trained with
+`fit!(model, y; seq_len=...)`.
+"""
+function predict(model::DeepTimeSeriesModel, steps::Int)
+    _assert_trained(model)
+    steps > 0 || error("Forecast steps must be positive, got $steps.")
+    length(model._train_data) >= model.seq_len || error("No training series stored for autoregressive forecasting. Train with fit!(model, y; seq_len=...) first.")
+
+    history = collect(Float64, model._train_data)
+    forecasts = Float64[]
+
+    for _ in 1:steps
+        window = history[end-model.seq_len+1:end]
+        scaled = (window .- model._y_mean) ./ model._y_std
+        X = reshape(Float32.(scaled), 1, model.seq_len, 1)
+        pred_scaled = Float64(model._chain(X)[1, 1])
+        pred = pred_scaled * model._y_std + model._y_mean
+        push!(forecasts, pred)
+        push!(history, pred)
+    end
+
+    return forecasts
 end

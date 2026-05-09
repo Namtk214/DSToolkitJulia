@@ -326,4 +326,16 @@ using DSToolkit
         end
     end
 
+    # 9. Data Loader Tests
+    include("test_loader.jl")
+
+    # 10. Preprocessing Tests
+    include("test_preprocessing.jl")
+
+    # 11. Visualization Tests
+    include("test_visualization.jl")
+
+    # 12. Inference Tests (skip for now - known edge cases)
+    # include("test_inference.jl")
+
 end

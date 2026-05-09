@@ -39,7 +39,11 @@ function _save_deep_ts(model::DeepTimeSeriesModel, path::String)
         :input_dim  => model.input_dim,
         :hidden_dim => model.hidden_dim,
         :epochs     => model.epochs,
+        :seq_len    => model.seq_len,
         :is_trained => model.is_trained,
+        :train_data => model._train_data,
+        :y_mean     => model._y_mean,
+        :y_std      => model._y_std,
     )
     JLD2.jldsave(path;
         model_type = string(model_type),
@@ -101,15 +105,20 @@ function _load_deep_ts(data::Dict)
     chain_state = data["chain_state"]
 
     # Reconstruct model
+    seq_len = get(params, :seq_len, 12)
     model = if contains(type_str, "RNNModel")
-        RNNModel(params[:input_dim]; hidden_dim=params[:hidden_dim], epochs=params[:epochs])
+        RNNModel(params[:input_dim]; hidden_dim=params[:hidden_dim], epochs=params[:epochs], seq_len=seq_len)
     elseif contains(type_str, "LSTMModel")
-        LSTMModel(params[:input_dim]; hidden_dim=params[:hidden_dim], epochs=params[:epochs])
+        LSTMModel(params[:input_dim]; hidden_dim=params[:hidden_dim], epochs=params[:epochs], seq_len=seq_len)
     elseif contains(type_str, "GRUModel")
-        GRUModel(params[:input_dim]; hidden_dim=params[:hidden_dim], epochs=params[:epochs])
+        GRUModel(params[:input_dim]; hidden_dim=params[:hidden_dim], epochs=params[:epochs], seq_len=seq_len)
     else
         error("Unknown deep TS model type: $type_str")
     end
+
+    model._train_data = Float64.(get(params, :train_data, Float64[]))
+    model._y_mean = Float64(get(params, :y_mean, 0.0))
+    model._y_std = Float64(get(params, :y_std, 1.0))
 
     # Rebuild chain and load state
     if chain_state !== nothing

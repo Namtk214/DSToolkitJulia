@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Model Inference - DSToolkit Demo</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            background: #eef3f8;
+            min-height: 100vh;
+            padding: 20px;
+            color: #1c2733;
+        }
+        .container { max-width: 980px; margin: 0 auto; }
+        .header, .card {
+            background: white;
+            padding: 26px;
+            border-radius: 8px;
+            box-shadow: 0 8px 24px rgba(22, 35, 48, 0.12);
+            margin-bottom: 18px;
+        }
+        .header h1 { color: #294e75; font-size: 2rem; margin: 10px 0 6px; }
+        .back-btn {
+            display: inline-block;
+            padding: 8px 14px;
+            background: #e7edf4;
+            color: #1c2733;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 14px;
+        }
+        label { display: block; color: #3f4f60; font-weight: 650; margin-bottom: 7px; }
+        input, select {
+            width: 100%;
+            padding: 11px 12px;
+            border: 1px solid #cbd7e3;
+            border-radius: 6px;
+            font-size: 1rem;
+            background: white;
+        }
+        input:focus, select:focus { outline: 2px solid #8fb4da; border-color: #294e75; }
+        .form-group { margin-bottom: 16px; }
+        .hint { font-size: 0.85rem; color: #687789; margin-top: 5px; }
+        .btn {
+            padding: 12px 16px;
+            background: #2f6f68;
+            color: white;
+            border: 0;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .btn.secondary { background: #294e75; }
+        .btn:disabled { background: #a8b2bd; cursor: not-allowed; }
+        .status {
+            margin-top: 14px;
+            padding: 12px;
+            border-radius: 6px;
+            background: #edf7f5;
+            border: 1px solid #c6e5df;
+        }
+        .result {
+            margin-top: 18px;
+            padding: 18px;
+            border-radius: 8px;
+            display: none;
+        }
+        .result.success { background: #e8f5ee; border: 1px solid #b7dcc8; }
+        .result.error { background: #fdecec; border: 1px solid #efb9b9; color: #7a1d1d; }
+        .prediction-value {
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: #294e75;
+            margin: 8px 0 12px;
+        }
+        .prob-bar { margin: 10px 0; }
+        .prob-label { display: flex; justify-content: space-between; margin-bottom: 5px; font-weight: 650; }
+        .prob-progress { height: 14px; background: #dbe4ed; border-radius: 99px; overflow: hidden; }
+        .prob-fill { height: 100%; background: #2f6f68; }
+        .examples { background: #f5f8fb; padding: 14px; border-radius: 8px; margin-top: 14px; }
+        .example-btn {
+            display: inline-block;
+            padding: 8px 12px;
+            background: #294e75;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            margin: 5px 6px 0 0;
+            cursor: pointer;
+        }
+        .note { margin-top: 8px; color: #687789; line-height: 1.45; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <a href="/" class="back-btn">Back to Home</a>
+            <h1>DSToolkit Demo Inference</h1>
+            <p>Choose any included dataset and a compatible model, train it, then run prediction or forecast.</p>
+        </div>
+
+        <div class="card">
+            <h2>Train Configuration</h2>
+            <div class="grid">
+                <div class="form-group">
+                    <label for="dataset-select">Dataset</label>
+                    <select id="dataset-select"></select>
+                </div>
+                <div class="form-group">
+                    <label for="model-select">Model</label>
+                    <select id="model-select"></select>
+                </div>
+            </div>
+            <button class="btn secondary" id="train-btn">Train Selected Model</button>
+            <div id="train-status" class="status">Loading catalog...</div>
+        </div>
+
+        <div class="card">
+            <h2 id="input-title">Input</h2>
+            <form id="inference-form">
+                <div id="feature-inputs"></div>
+                <button type="submit" class="btn" id="predict-btn" disabled>Run Prediction</button>
+            </form>
+            <div class="examples" id="examples" style="display:none;">
+                <h4>Quick Examples</h4>
+                <div id="example-buttons"></div>
+            </div>
+            <div id="result" class="result"></div>
+        </div>
+    </div>
+
+    <script>
+        let catalog = null;
+        let modelInfo = null;
+        let datasetStats = null;
+
+        const datasetSelect = document.getElementById('dataset-select');
+        const modelSelect = document.getElementById('model-select');
+        const trainBtn = document.getElementById('train-btn');
+        const trainStatus = document.getElementById('train-status');
+        const predictBtn = document.getElementById('predict-btn');
+
+        function taskForDataset(datasetId) {
+            return catalog.datasets.find((item) => item.id === datasetId).task;
+        }
+
+        function populateDatasets() {
+            datasetSelect.innerHTML = catalog.datasets.map((item) =>
+                `<option value="${item.id}">${item.label} (${item.task})</option>`
+            ).join('');
+        }
+
+        function populateModels() {
+            const task = taskForDataset(datasetSelect.value);
+            modelSelect.innerHTML = catalog.models[task].map((item) =>
+                `<option value="${item.id}" ${item.trainable ? '' : 'disabled'}>${item.label}${item.trainable ? '' : ' - listed, not trainable in this demo'}</option>`
+            ).join('');
+        }
+
+        function setStatus(text) {
+            trainStatus.textContent = text;
+        }
+
+        async function loadState() {
+            const [model, stats] = await Promise.all([
+                fetch('/api/model-info').then((r) => r.json()),
+                fetch('/api/dataset-stats').then((r) => r.json())
+            ]);
+            modelInfo = model;
+            datasetStats = stats;
+            datasetSelect.value = model.dataset_id;
+            populateModels();
+            modelSelect.value = model.model_id;
+            renderInputs();
+            const metrics = Object.entries(model.metrics || {}).filter(([, v]) => v !== null);
+            const metricText = metrics.length ? metrics.map(([k, v]) => `${k}: ${Number(v).toFixed(4)}`).join(', ') : 'trained';
+            setStatus(`${model.dataset} + ${model.model} ready (${metricText})`);
+        }
+
+        function renderInputs() {
+            const container = document.getElementById('feature-inputs');
+            const examples = document.getElementById('examples');
+            const buttons = document.getElementById('example-buttons');
+            const result = document.getElementById('result');
+            result.style.display = 'none';
+            container.innerHTML = '';
+            buttons.innerHTML = '';
+            examples.style.display = 'none';
+
+            if (modelInfo.task === 'timeseries') {
+                document.getElementById('input-title').textContent = 'Forecast Horizon';
+                container.innerHTML = `
+                    <div class="form-group">
+                        <label for="steps">Steps Ahead</label>
+                        <input id="steps" name="steps" type="number" min="1" max="120" step="1" value="12" required>
+                        <div class="hint">Series length: ${modelInfo.n_samples}. Min: ${Number(datasetStats.series_stats.min).toFixed(2)}, mean: ${Number(datasetStats.series_stats.mean).toFixed(2)}, max: ${Number(datasetStats.series_stats.max).toFixed(2)}</div>
+                    </div>
+                `;
+                predictBtn.textContent = 'Run Forecast';
+                predictBtn.disabled = false;
+                return;
+            }
+
+            document.getElementById('input-title').textContent = 'Input Features';
+            for (const item of datasetStats.feature_schema) {
+                const group = document.createElement('div');
+                group.className = 'form-group';
+                if (item.kind === 'number') {
+                    group.innerHTML = `
+                        <label for="${item.name}">${item.name}</label>
+                        <input type="number" id="${item.name}" name="${item.name}" step="0.01" value="${Number(item.mean).toFixed(2)}" required>
+                        <div class="hint">Range: ${Number(item.min).toFixed(2)} - ${Number(item.max).toFixed(2)}. Mean: ${Number(item.mean).toFixed(2)}</div>
+                    `;
+                } else {
+                    group.innerHTML = `
+                        <label for="${item.name}">${item.name}</label>
+                        <select id="${item.name}" name="${item.name}">
+                            ${item.values.map((value) => `<option value="${value}">${value}</option>`).join('')}
+                        </select>
+                    `;
+                }
+                container.appendChild(group);
+            }
+
+            setupExamples();
+            predictBtn.textContent = 'Run Prediction';
+            predictBtn.disabled = false;
+        }
+
+        function setupExamples() {
+            const numeric = datasetStats.feature_schema.filter((item) => item.kind === 'number');
+            if (!numeric.length) return;
+
+            const examples = [
+                ['Low Values', (item) => item.min],
+                ['Mean Values', (item) => item.mean],
+                ['High Values', (item) => item.max],
+            ];
+
+            const buttons = document.getElementById('example-buttons');
+            for (const [name, selector] of examples) {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'example-btn';
+                btn.textContent = name;
+                btn.onclick = () => {
+                    for (const item of numeric) {
+                        document.getElementById(item.name).value = Number(selector(item)).toFixed(2);
+                    }
+                };
+                buttons.appendChild(btn);
+            }
+            document.getElementById('examples').style.display = 'block';
+        }
+
+        async function trainSelected() {
+            trainBtn.disabled = true;
+            predictBtn.disabled = true;
+            setStatus('Training selected model...');
+            try {
+                const response = await fetch('/api/train', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ dataset: datasetSelect.value, model: modelSelect.value })
+                });
+                const result = await response.json();
+                if (!result.ok) throw new Error(result.error);
+                await loadState();
+            } catch (error) {
+                setStatus(`Training failed: ${error.message}`);
+            } finally {
+                trainBtn.disabled = false;
+            }
+        }
+
+        datasetSelect.addEventListener('change', () => {
+            populateModels();
+            predictBtn.disabled = true;
+            setStatus('Choose a compatible model, then train.');
+        });
+        trainBtn.addEventListener('click', trainSelected);
+
+        document.getElementById('inference-form').addEventListener('submit', async (event) => {
+            event.preventDefault();
+            predictBtn.disabled = true;
+            const data = {};
+            for (const [key, value] of new FormData(event.target).entries()) {
+                const schemaItem = datasetStats.feature_schema?.find((item) => item.name === key);
+                data[key] = schemaItem && schemaItem.kind === 'category' ? value : Number(value);
+            }
+
+            try {
+                const response = await fetch('/api/predict', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await response.json();
+                result.error ? showError(result.error) : showResult(result);
+            } catch (error) {
+                showError(error.message);
+            } finally {
+                predictBtn.disabled = false;
+            }
+        });
+
+        function showResult(result) {
+            const box = document.getElementById('result');
+            box.className = 'result success';
+
+            if (result.task === 'timeseries') {
+                box.innerHTML = `
+                    <h3>Forecast</h3>
+                    <div class="note">${result.forecast.map((v, i) => `t+${i + 1}: ${Number(v).toFixed(3)}`).join('<br>')}</div>
+                `;
+                box.style.display = 'block';
+                return;
+            }
+
+            const label = result.task === 'regression' ? 'Value' : 'Class';
+            let html = `<h3>Prediction Result</h3><div class="prediction-value">${label}: ${typeof result.prediction === 'number' ? Number(result.prediction).toFixed(4) : result.prediction}</div>`;
+            if (result.probabilities) {
+                html += '<h4>Class Probabilities</h4>';
+                for (const [cls, prob] of Object.entries(result.probabilities)) {
+                    const pct = (Number(prob) * 100).toFixed(1);
+                    html += `<div class="prob-bar"><div class="prob-label"><span>${cls}</span><span>${pct}%</span></div><div class="prob-progress"><div class="prob-fill" style="width:${pct}%"></div></div></div>`;
+                }
+            }
+            box.innerHTML = html;
+            box.style.display = 'block';
+        }
+
+        function showError(message) {
+            const box = document.getElementById('result');
+            box.className = 'result error';
+            box.textContent = message;
+            box.style.display = 'block';
+        }
+
+        fetch('/api/catalog')
+            .then((r) => r.json())
+            .then(async (data) => {
+                catalog = data;
+                populateDatasets();
+                await loadState();
+            })
+            .catch((error) => setStatus(`Catalog failed: ${error.message}`));
+    </script>
+</body>
+</html>
